@@ -1,17 +1,14 @@
+import { definePlugin } from "@decky/api";
 import {
   Dropdown,
-  ServerAPI,
   ButtonItem,
   ToggleField,
-  definePlugin,
   PanelSection,
-  staticClasses,
   DropdownOption,
   PanelSectionRow,
-} from "decky-frontend-lib";
+} from "@decky/ui";
 import { FunctionComponent, useState, useMemo } from "react";
 import { FaMicrophone, FaStopCircle, FaPaperPlane } from "react-icons/fa";
-
 // Interface for the SpeechRecognition API
 // This is needed because the default TS types might not have it
 declare global {
@@ -23,21 +20,21 @@ declare global {
 
 // Backend function to send text
 async function sendTextToKeyboard(text: string) {
-	if (text) {
-		// Using the SteamClient global to interact with the keyboard
-		// We cast to `any` because the default Decky types may not include the keyboard API
-		await (SteamClient as any).keyboard.SendText(text);
-		return true;
-	}
-
-	return false;
+    if (text) {
+        // Using the SteamClient global to interact with the keyboard
+        // We cast to `any` because the default Decky types may not include the keyboard API
+        await (SteamClient as any).keyboard.SendText(text);
+        return true;
+    }
+    return false;
 }
 
-const Content: FunctionComponent<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
+
+const Content: FunctionComponent = () => {
   const [isListening, setIsListening] = useState(false);
   const [currentTranscript, setCurrentTranscript] = useState("");
   const [autoSend, setAutoSend] = useState(true);
-  const [selectedLang, setSelectedLang] = useState('en-US'); // New state for language
+  const [selectedLang, setSelectedLang] = useState('en-US');
 
   // Memoize the recognition object so it's not recreated on every render
   const recognition = useMemo(() => {
@@ -46,11 +43,9 @@ const Content: FunctionComponent<{ serverAPI: ServerAPI }> = ({ serverAPI }) => 
       console.error("Speech recognition not supported in this browser.");
       return null;
     }
-
     const instance = new SpeechRecognition();
     instance.continuous = true;
     instance.interimResults = true;
-
     return instance;
   }, []);
 
@@ -63,11 +58,9 @@ const Content: FunctionComponent<{ serverAPI: ServerAPI }> = ({ serverAPI }) => 
 
     recognition.onend = () => {
       setIsListening(false);
-
       if (autoSend && currentTranscript.trim()) {
-        serverAPI.callPluginMethod('send_text', { text: currentTranscript.trim() + ' ' });
+        sendTextToKeyboard(currentTranscript.trim() + ' ');
       }
-
       setCurrentTranscript("");
     };
 
@@ -87,7 +80,6 @@ const Content: FunctionComponent<{ serverAPI: ServerAPI }> = ({ serverAPI }) => 
           interimTranscript += event.results[i][0].transcript;
         }
       }
-
       setCurrentTranscript(finalTranscript || interimTranscript);
     };
   }
@@ -107,13 +99,11 @@ const Content: FunctionComponent<{ serverAPI: ServerAPI }> = ({ serverAPI }) => 
 
   const handleSendText = () => {
     if (currentTranscript.trim()) {
-      serverAPI.callPluginMethod('send_text', { text: currentTranscript.trim() + ' ' });
-      // Optionally clear transcript after manual send
+      sendTextToKeyboard(currentTranscript.trim() + ' ');
       setCurrentTranscript("");
     }
   };
 
-  // Language options for the dropdown
   const languageOptions: DropdownOption[] = [
     { label: 'English (US)', data: 'en-US' },
     { label: 'English (UK)', data: 'en-GB' },
@@ -160,26 +150,29 @@ const Content: FunctionComponent<{ serverAPI: ServerAPI }> = ({ serverAPI }) => 
           {!isListening ? (
             <ButtonItem
               layout="below"
-							icon={<FaMicrophone />}
-              label="Start Listening"
               onClick={startRecognition}
-            ></ButtonItem>
+              icon={<FaMicrophone />}
+            >
+              Start Listening
+            </ButtonItem>
           ) : (
             <ButtonItem
               layout="below"
-							icon={<FaStopCircle />}
-              label="Stop"
               onClick={stopRecognition}
-            ></ButtonItem>
+              icon={<FaStopCircle />}
+            >
+              Stop
+            </ButtonItem>
           )}
 
           <ButtonItem
             layout="below"
-						icon={<FaPaperPlane />}
-            label="Send Text"
-            disabled={isListening || !currentTranscript.trim() || autoSend}
             onClick={handleSendText}
-          ></ButtonItem>
+            disabled={isListening || !currentTranscript.trim() || autoSend}
+            icon={<FaPaperPlane />}
+          >
+            Send Text
+          </ButtonItem>
         </div>
       </PanelSectionRow>
 
@@ -195,20 +188,13 @@ const Content: FunctionComponent<{ serverAPI: ServerAPI }> = ({ serverAPI }) => 
 };
 
 
-export default definePlugin((serverApi: ServerAPI) => {
+export default definePlugin(() => {
   return {
-    title: <div className={staticClasses.Title}>Speech-To-Deck</div>,
-    content: <Content serverAPI={serverApi} />,
+    name: "Speech-To-Deck",
     icon: <FaMicrophone />,
+    content: <Content />,
     onDismount() {
       // Cleanup if needed
     },
-    // Backend definition
-    backend: {
-      send_text: async (params: { text: string }) => {
-        return await sendTextToKeyboard(params.text);
-      },
-    },
   };
 });
-

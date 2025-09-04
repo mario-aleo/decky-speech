@@ -1,33 +1,37 @@
 {
-  "name": "decky-plugin-template",
-  "version": "0.0.1",
-  "description": "A template to quickly create decky plugins from scratch, based on TypeScript and webpack",
+  "name": "decky-speech",
+  "version": "0.0.0",
+  "description": "A simple plugin that uses the Web Speech API to provide a speech-to-text input method directly in the Quick Access Menu.",
   "type": "module",
   "scripts": {
-    "build": "rollup -c",
+    "build": "rollup -c && ./create-zip.sh",
     "watch": "rollup -c -w",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/SteamDeckHomebrew/decky-plugin-template.git"
+    "url": "git+https://github.com/mario-aleo/decky-clipboard.git"
   },
   "keywords": [
     "decky",
     "plugin",
-    "plugin-template",
+    "input",
+    "voice",
     "steam-deck",
-    "deck"
+    "deck",
+    "utility"
   ],
-  "author": "You <you@you.tld>",
+  "author": "Mario Aleo",
   "license": "BSD-3-Clause",
   "bugs": {
-    "url": "https://github.com/SteamDeckHomebrew/decky-plugin-template/issues"
+    "url": "https://github.com/mario-aleo/decky-clipboard/issues"
   },
-  "homepage": "https://github.com/SteamDeckHomebrew/decky-plugin-template#readme",
+  "homepage": "https://github.com/mario-aleo/decky-clipboard#readme",
   "devDependencies": {
     "@decky/rollup": "^1.0.1",
     "@decky/ui": "^4.7.2",
+    "decky-frontend-lib": "^3.23.0",
+    "@types/dom-speech-recognition": "^0.0.4",
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",
     "@types/webpack": "^5.28.5",

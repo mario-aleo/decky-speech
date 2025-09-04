@@ -1,115 +1,214 @@
 import {
+  Dropdown,
+  ServerAPI,
   ButtonItem,
-  PanelSection,
-  PanelSectionRow,
-  Navigation,
-  staticClasses
-} from "@decky/ui";
-import {
-  addEventListener,
-  removeEventListener,
-  callable,
+  ToggleField,
   definePlugin,
-  toaster,
-  // routerHook
-} from "@decky/api"
-import { useState } from "react";
-import { FaShip } from "react-icons/fa";
+  PanelSection,
+  staticClasses,
+  DropdownOption,
+  PanelSectionRow,
+} from "decky-frontend-lib";
+import { FunctionComponent, useState, useMemo } from "react";
+import { FaMicrophone, FaStopCircle, FaPaperPlane } from "react-icons/fa";
 
-// import logo from "../assets/logo.png";
+// Interface for the SpeechRecognition API
+// This is needed because the default TS types might not have it
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
 
-// This function calls the python function "add", which takes in two numbers and returns their sum (as a number)
-// Note the type annotations:
-//  the first one: [first: number, second: number] is for the arguments
-//  the second one: number is for the return value
-const add = callable<[first: number, second: number], number>("add");
+// Backend function to send text
+async function sendTextToKeyboard(text: string) {
+	if (text) {
+		// Using the SteamClient global to interact with the keyboard
+		// We cast to `any` because the default Decky types may not include the keyboard API
+		await (SteamClient as any).keyboard.SendText(text);
+		return true;
+	}
 
-// This function calls the python function "start_timer", which takes in no arguments and returns nothing.
-// It starts a (python) timer which eventually emits the event 'timer_event'
-const startTimer = callable<[], void>("start_timer");
+	return false;
+}
 
-function Content() {
-  const [result, setResult] = useState<number | undefined>();
+const Content: FunctionComponent<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
+  const [isListening, setIsListening] = useState(false);
+  const [currentTranscript, setCurrentTranscript] = useState("");
+  const [autoSend, setAutoSend] = useState(true);
+  const [selectedLang, setSelectedLang] = useState('en-US'); // New state for language
 
-  const onClick = async () => {
-    const result = await add(Math.random(), Math.random());
-    setResult(result);
+  // Memoize the recognition object so it's not recreated on every render
+  const recognition = useMemo(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      console.error("Speech recognition not supported in this browser.");
+      return null;
+    }
+
+    const instance = new SpeechRecognition();
+    instance.continuous = true;
+    instance.interimResults = true;
+
+    return instance;
+  }, []);
+
+
+  if (recognition) {
+    recognition.onstart = () => {
+      setIsListening(true);
+      setCurrentTranscript("");
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+
+      if (autoSend && currentTranscript.trim()) {
+        serverAPI.callPluginMethod('send_text', { text: currentTranscript.trim() + ' ' });
+      }
+
+      setCurrentTranscript("");
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error", event.error);
+      setIsListening(false);
+    };
+
+    recognition.onresult = (event: any) => {
+      let interimTranscript = "";
+      let finalTranscript = "";
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
+      }
+
+      setCurrentTranscript(finalTranscript || interimTranscript);
+    };
+  }
+
+  const startRecognition = () => {
+    if (recognition && !isListening) {
+      recognition.lang = selectedLang; // Set language before starting
+      recognition.start();
+    }
   };
 
+  const stopRecognition = () => {
+    if (recognition && isListening) {
+      recognition.stop();
+    }
+  };
+
+  const handleSendText = () => {
+    if (currentTranscript.trim()) {
+      serverAPI.callPluginMethod('send_text', { text: currentTranscript.trim() + ' ' });
+      // Optionally clear transcript after manual send
+      setCurrentTranscript("");
+    }
+  };
+
+  // Language options for the dropdown
+  const languageOptions: DropdownOption[] = [
+    { label: 'English (US)', data: 'en-US' },
+    { label: 'English (UK)', data: 'en-GB' },
+    { label: 'Español (España)', data: 'es-ES' },
+    { label: 'Français', data: 'fr-FR' },
+    { label: 'Deutsch', data: 'de-DE' },
+    { label: 'Italiano', data: 'it-IT' },
+    { label: '日本語', data: 'ja-JP' },
+    { label: '한국어', data: 'ko-KR' },
+    { label: 'Português (Brasil)', data: 'pt-BR' },
+    { label: 'Русский', data: 'ru-RU' },
+    { label: '中文 (简体)', data: 'cmn-Hans-CN' },
+  ];
+
+  if (!recognition) {
+    return (
+      <PanelSection title="Speech-To-Deck">
+        <PanelSectionRow>
+          Speech recognition is not supported in this browser.
+        </PanelSectionRow>
+      </PanelSection>
+    );
+  }
+
   return (
-    <PanelSection title="Panel Section">
-      <PanelSectionRow>
-        <ButtonItem
-          layout="below"
-          onClick={onClick}
-        >
-          {result ?? "Add two numbers via Python"}
-        </ButtonItem>
-      </PanelSectionRow>
-      <PanelSectionRow>
-        <ButtonItem
-          layout="below"
-          onClick={() => startTimer()}
-        >
-          {"Start Python timer"}
-        </ButtonItem>
+    <PanelSection title="Speech-To-Deck">
+       <PanelSectionRow>
+        <Dropdown
+          menuLabel="Language"
+          rgOptions={languageOptions}
+          selectedOption={selectedLang}
+          onChange={(option) => setSelectedLang(option.data)}
+        />
       </PanelSectionRow>
 
-      {/* <PanelSectionRow>
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <img src={logo} />
+      <PanelSectionRow>
+        <div style={{ flex: 1, whiteSpace: 'normal', wordBreak: 'break-word', background: '#1a1a1a', padding: '8px', borderRadius: '4px', minHeight: '40px', color: '#ffffff' }}>
+          {currentTranscript || (isListening ? "Listening..." : "Press Start to begin")}
         </div>
-      </PanelSectionRow> */}
+      </PanelSectionRow>
 
-      {/*<PanelSectionRow>
-        <ButtonItem
-          layout="below"
-          onClick={() => {
-            Navigation.Navigate("/decky-plugin-test");
-            Navigation.CloseSideMenus();
-          }}
-        >
-          Router
-        </ButtonItem>
-      </PanelSectionRow>*/}
+      <PanelSectionRow>
+        <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+          {!isListening ? (
+            <ButtonItem
+              layout="below"
+							icon={<FaMicrophone />}
+              label="Start Listening"
+              onClick={startRecognition}
+            ></ButtonItem>
+          ) : (
+            <ButtonItem
+              layout="below"
+							icon={<FaStopCircle />}
+              label="Stop"
+              onClick={stopRecognition}
+            ></ButtonItem>
+          )}
+
+          <ButtonItem
+            layout="below"
+						icon={<FaPaperPlane />}
+            label="Send Text"
+            disabled={isListening || !currentTranscript.trim() || autoSend}
+            onClick={handleSendText}
+          ></ButtonItem>
+        </div>
+      </PanelSectionRow>
+
+      <PanelSectionRow>
+        <ToggleField
+          label="Auto-send text on pause"
+          checked={autoSend}
+          onChange={(value) => setAutoSend(value)}
+        />
+      </PanelSectionRow>
     </PanelSection>
   );
 };
 
-export default definePlugin(() => {
-  console.log("Template plugin initializing, this is called once on frontend startup")
 
-  // serverApi.routerHook.addRoute("/decky-plugin-test", DeckyPluginRouterTest, {
-  //   exact: true,
-  // });
-
-  // Add an event listener to the "timer_event" event from the backend
-  const listener = addEventListener<[
-    test1: string,
-    test2: boolean,
-    test3: number
-  ]>("timer_event", (test1, test2, test3) => {
-    console.log("Template got timer_event with:", test1, test2, test3)
-    toaster.toast({
-      title: "template got timer_event",
-      body: `${test1}, ${test2}, ${test3}`
-    });
-  });
-
+export default definePlugin((serverApi: ServerAPI) => {
   return {
-    // The name shown in various decky menus
-    name: "Test Plugin",
-    // The element displayed at the top of your plugin's menu
-    titleView: <div className={staticClasses.Title}>Decky Example Plugin</div>,
-    // The content of your plugin's menu
-    content: <Content />,
-    // The icon displayed in the plugin list
-    icon: <FaShip />,
-    // The function triggered when your plugin unloads
+    title: <div className={staticClasses.Title}>Speech-To-Deck</div>,
+    content: <Content serverAPI={serverApi} />,
+    icon: <FaMicrophone />,
     onDismount() {
-      console.log("Unloading")
-      removeEventListener("timer_event", listener);
-      // serverApi.routerHook.removeRoute("/decky-plugin-test");
+      // Cleanup if needed
+    },
+    // Backend definition
+    backend: {
+      send_text: async (params: { text: string }) => {
+        return await sendTextToKeyboard(params.text);
+      },
     },
   };
 });
+

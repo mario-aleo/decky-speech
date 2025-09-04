@@ -1,22 +1,18 @@
 {
   "compilerOptions": {
-    "outDir": "dist",
-    "module": "ESNext",
-    "target": "ES2020",
-    "jsx": "react",
-    "jsxFactory": "window.SP_REACT.createElement",
-    "jsxFragmentFactory": "window.SP_REACT.Fragment",
-    "declaration": false,
-    "moduleResolution": "node",
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "esModuleInterop": true,
-    "noImplicitReturns": true,
-    "noImplicitThis": true,
-    "noImplicitAny": true,
+    "target": "ES2021",
+    "module": "ES2022",
+    "lib": ["ES2021", "DOM"],
+    "jsx": "react-jsx",
     "strict": true,
-    "allowSyntheticDefaultImports": true
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "rootDir": "src",
+    "outDir": "dist"
   },
-  "include": ["src"],
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["node_modules"]
 }

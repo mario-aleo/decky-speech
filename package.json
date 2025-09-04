@@ -1,6 +1,6 @@
 {
   "name": "decky-speech",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "A simple plugin that uses the Web Speech API to provide a speech-to-text input method directly in the Quick Access Menu.",
   "type": "module",
   "scripts": {
